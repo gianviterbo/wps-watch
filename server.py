@@ -249,7 +249,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", cache)
         self.end_headers()
         if self.command != "HEAD":
-            self.wfile.write(body)
+            try:
+                self.wfile.write(body)
+            except (ConnectionResetError, BrokenPipeError):
+                pass
 
     def error(self, code, msg):
         self.send_json({"error": msg, "status": code}, code=code)
@@ -266,12 +269,17 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", cache)
         self.end_headers()
         if self.command != "HEAD":
-            self.wfile.write(data)
+            try:
+                self.wfile.write(data)
+            except (ConnectionResetError, BrokenPipeError):
+                pass
 
     # -- routing
     def do_GET(self):
         try:
             self.route()
+        except (ConnectionResetError, BrokenPipeError):
+            return  # client hung up mid-response; not an application error
         except Exception as exc:
             write_log("handler error: %s: %s" % (type(exc).__name__, exc))
             self.error(500, "internal error")
