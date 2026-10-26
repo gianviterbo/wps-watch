@@ -330,7 +330,9 @@ class Handler(BaseHTTPRequestHandler):
                              "count": len(STATE["vessels"].get("vessels") or []),
                              "note": STATE["vessels"].get("note")},
                     events={"configured": STATE["events"].get("configured", False),
-                            "count": len(STATE["events"].get("events") or []),
+                            "count": STATE["events"].get("count", 0),
+                            "gaps": len(STATE["events"].get("gaps") or []),
+                            "encounters": len(STATE["events"].get("encounters") or []),
                             "note": STATE["events"].get("note")},
                 )
             return self.send_json(st)

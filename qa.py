@@ -10,10 +10,13 @@ coordinates to prove the projection.
 """
 import json
 import math
+import os
 import sys
 import urllib.request
 
 URL = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8931/"
+OUT = os.environ.get("QA_OUT", "/tmp/wps-qa")   # keep screenshots out of the repo
+os.makedirs(OUT, exist_ok=True)
 SIZES = [(1680, 1000), (1440, 900), (1280, 800)]
 VIEW = (117.4, 13.3, 23.2)
 SAMPLES = [("Luzon land", 16.0, 121.0), ("open SCS", 15.0, 115.0), ("Palawan", 9.2, 118.2)]
@@ -106,7 +109,7 @@ def main():
             if res["sar"] < 1:
                 fails.append("no SAR footprints at %dx%d" % (w, h))
 
-            shot = "/data/workspace/wps-watch/shots/live-%d.png" % w
+            shot = os.path.join(OUT, "live-%d.png" % w)
             pg.screenshot(path=shot)
 
             from PIL import Image
