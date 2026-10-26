@@ -1,0 +1,157 @@
+{
+  "site": {
+    "name": "West Philippine Sea Watch",
+    "short": "WPS Watch",
+    "host": "wps.gdgt.link",
+    "port": 8931,
+    "publisher": "Gadget Pilipinas"
+  },
+  "bbox": [
+    112.0,
+    5.0,
+    121.5,
+    19.0
+  ],
+  "news": {
+    "ttl_s": 300,
+    "max_items": 80,
+    "max_age_days": 21,
+    "min_relevance": 1,
+    "jev": {
+      "enabled": true,
+      "enforce": true,
+      "ph_min": 0.45,
+      "prc_max": 0.55,
+      "max_per_cycle": 90,
+      "cost_cap_usd": 0.6,
+      "cache_days": 7,
+      "budget_s": 150
+    }
+  },
+  "feeds": [
+    {
+      "name": "Philstar",
+      "url": "https://www.philstar.com/rss/headlines",
+      "kind": "ph_news",
+      "tier": 1
+    },
+    {
+      "name": "Inquirer",
+      "url": "https://newsinfo.inquirer.net/feed",
+      "kind": "ph_news",
+      "tier": 1
+    },
+    {
+      "name": "Rappler",
+      "url": "https://www.rappler.com/feed/",
+      "kind": "ph_news",
+      "tier": 1
+    },
+    {
+      "name": "PhilSA",
+      "url": "https://philsa.gov.ph/feed",
+      "kind": "ph_gov",
+      "tier": 1
+    },
+    {
+      "name": "GMA News",
+      "url": "https://data.gmanetwork.com/gno/rss/news/feed.xml",
+      "kind": "ph_news",
+      "tier": 1
+    },
+    {
+      "name": "RFA",
+      "url": "https://www.rfa.org/english/rss",
+      "kind": "regional",
+      "tier": 2
+    },
+    {
+      "name": "The Diplomat · SCS",
+      "url": "https://thediplomat.com/tag/south-china-sea/feed/",
+      "kind": "regional",
+      "tier": 2
+    },
+    {
+      "name": "CSIS AMTI",
+      "url": "https://amti.csis.org/feed/",
+      "kind": "monitor",
+      "tier": 1
+    },
+    {
+      "name": "USNI News",
+      "url": "https://news.usni.org/feed",
+      "kind": "monitor",
+      "tier": 1
+    },
+    {
+      "name": "Google News · WPS",
+      "url": "https://news.google.com/rss/search?q=%22West+Philippine+Sea%22&hl=en-PH&gl=PH&ceid=PH:en",
+      "kind": "ph_news",
+      "tier": 1
+    },
+    {
+      "name": "Google News · Scarborough",
+      "url": "https://news.google.com/rss/search?q=%22Scarborough+Shoal%22&hl=en-PH&gl=PH&ceid=PH:en",
+      "kind": "ph_news",
+      "tier": 1
+    },
+    {
+      "name": "Google News · Ayungin",
+      "url": "https://news.google.com/rss/search?q=%22Ayungin+Shoal%22&hl=en-PH&gl=PH&ceid=PH:en",
+      "kind": "ph_news",
+      "tier": 1
+    },
+    {
+      "name": "Google News · China Coast Guard PH",
+      "url": "https://news.google.com/rss/search?q=%22China+Coast+Guard%22+Philippines&hl=en-PH&gl=PH&ceid=PH:en",
+      "kind": "ph_news",
+      "tier": 1
+    }
+  ],
+  "deny_domains": [
+    "xinhuanet.com",
+    "globaltimes.cn",
+    "chinadaily.com.cn",
+    "cgtn.com",
+    "cctv.com",
+    "people.com.cn",
+    "china.org.cn",
+    "ecns.cn",
+    "china.com.cn",
+    "scmp.com",
+    "global.chinadaily.com.cn",
+    "news.cn"
+  ],
+  "keywords": [
+    "west philippine sea",
+    "south china sea",
+    "scarborough",
+    "panatag",
+    "bajo de masinloc",
+    "ayungin",
+    "second thomas",
+    "sierra madre",
+    "sabina",
+    "escosa",
+    "spratly",
+    "kalayaan",
+    "paracel",
+    "recto bank",
+    "reed bank",
+    "pag-asa",
+    "thitu",
+    "philippine coast guard",
+    "pcg",
+    "maritime militia",
+    "china coast guard",
+    "ccg",
+    "wps",
+    "sea dispute",
+    "maritime zone",
+    "eez",
+    "benham rise",
+    "philippine rise",
+    "namria",
+    "philsa"
+  ]
+}

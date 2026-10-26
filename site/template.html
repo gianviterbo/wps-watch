@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>West Philippine Sea Watch</title>
+<meta name="description" content="Open-source maritime monitor of the West Philippine Sea: vessel activity, Sentinel-1 radar passes, and Philippine-Interest reporting.">
+<meta name="theme-color" content="#04070B">
+<meta name="robots" content="index,follow">
+<style>/*FONT_CSS*/</style>
+<style>
+  :root{
+    --ink:#04070B; --sea:#061019; --panel:#080D13;
+    --line:rgba(255,255,255,.075); --line-2:rgba(255,255,255,.13);
+    --text:#E7EBF2; --muted:#8B95A6; --dim:#5B6675;
+    --red:#FF4A3D; --amber:#FFB020; --cyan:#3BC5E8; --mint:#57D08F;
+    --land:#101A25; --coast:#33465C;
+    --rail-w:404px; --header-h:58px; --status-h:30px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--ink);color:var(--text);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;overflow:hidden}
+  .num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+  .lbl{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--dim);font-weight:500}
+  .app{display:grid;grid-template-rows:var(--header-h) 1fr var(--status-h);height:100vh}
+
+  /* header */
+  header{display:flex;align-items:center;gap:20px;padding:0 18px;
+    border-bottom:1px solid var(--line);background:#05090E}
+  .brand{display:flex;align-items:center;gap:11px;flex:0 0 auto}
+  .brand .glyph{width:22px;height:22px;position:relative;flex:0 0 22px}
+  .brand .glyph i{position:absolute;inset:0;border:1px solid var(--red);opacity:.55}
+  .brand .glyph i:nth-child(2){inset:5px;background:var(--red);opacity:1;border:0}
+  .brand h1{font-size:13.5px;font-weight:400;letter-spacing:.19em;line-height:1;white-space:nowrap}
+  .brand h1 b{font-weight:600}
+  .brand .sub{margin-top:5px;font-size:9px;letter-spacing:.15em}
+  .head-right{margin-left:auto;display:flex;align-items:center;gap:16px}
+  .clock{text-align:right;line-height:1.25}
+  .clock .t{font-size:15px;color:var(--text)}
+  .clock .z{font-size:9px;letter-spacing:.16em;color:var(--dim);font-family:"IBM Plex Mono",monospace}
+  .pill{display:flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid var(--line-2);
+    border-radius:2px;font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em;color:var(--muted);
+    white-space:nowrap}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 3px rgba(87,208,143,.14)}
+  .dot.amber{background:var(--amber);box-shadow:0 0 0 3px rgba(255,176,32,.14)}
+  .dot.red{background:var(--red);box-shadow:0 0 0 3px rgba(255,74,61,.14)}
+  .dot.grey{background:var(--dim);box-shadow:0 0 0 3px rgba(91,102,117,.14)}
+
+  /* main */
+  main{display:grid;grid-template-columns:1fr var(--rail-w);min-height:0}
+  .mapwrap{position:relative;background:var(--sea);min-width:0;overflow:hidden}
+  svg#map{width:100%;height:100%;display:block}
+  .vessel,.sar{cur:pointer;cursor:pointer}
+  .ov{position:absolute;z-index:3}
+  .layers{top:14px;left:14px;display:flex;flex-direction:column;gap:1px;
+    border:1px solid var(--line);background:rgba(6,10,16,.9)}
+  .layers .lh{padding:7px 10px;border-bottom:1px solid var(--line)}
+  .layer{display:flex;align-items:center;gap:9px;padding:7px 10px;cursor:pointer;
+    font-size:11.5px;color:var(--muted);user-select:none;min-width:178px;
+    background:none;border:0;width:100%;text-align:left;font-family:inherit}
+  .layer:hover{background:rgba(255,255,255,.035);color:var(--text)}
+  .layer .sw{width:9px;height:9px;border-radius:1px;flex:0 0 9px}
+  .layer .ct{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--dim)}
+  .layer[data-on="0"]{opacity:.42}
+  .layer[data-on="0"] .sw{background:transparent!important;border:1px solid var(--dim)}
+  .counters{top:14px;right:14px;border:1px solid var(--line);background:rgba(6,10,16,.9);min-width:200px}
+  .counters .row{display:flex;align-items:baseline;gap:8px;padding:8px 11px;border-bottom:1px solid var(--line)}
+  .counters .row:last-child{border-bottom:0}
+  .counters .k{font-size:11px;color:var(--muted)}
+  .counters .v{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:15px;font-variant-numeric:tabular-nums}
+  .counters .d{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--dim)}
+  .legend{bottom:60px;left:14px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;
+    border:1px solid var(--line);background:rgba(6,10,16,.9);padding:8px 11px;max-width:calc(100% - 28px)}
+  .legend .it{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--muted)}
+  .legend .gl{width:8px;height:8px;border-radius:50%}
+  .legend .gl.dash{background:none;border:1px dashed var(--cyan);width:10px;height:8px;border-radius:1px}
+  .legend .gl.ring{background:none;border:1px solid #9FB3C8;width:7px;height:7px;border-radius:50%}
+  .legend .gl.dia{background:none;border:1px solid var(--mint);width:7px;height:7px;transform:rotate(45deg)}
+  .legend .gl.ring2{background:none;border:1px dashed var(--amber);width:9px;height:9px;border-radius:50%}
+  .timebar{left:14px;right:14px;bottom:14px;display:flex;align-items:center;gap:14px;
+    border:1px solid var(--line);background:rgba(6,10,16,.92);padding:8px 12px}
+  .spark{display:flex;align-items:flex-end;gap:3px;height:22px;flex:0 0 auto}
+  .spark i{width:9px;background:rgba(59,197,232,.28);border-top:1px solid var(--cyan);display:block}
+  .spark i[data-empty="1"]{background:rgba(255,255,255,.05);border-top:1px solid rgba(255,255,255,.12)}
+  .timebar .txt{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--dim);letter-spacing:.04em}
+  .timebar .right{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--dim)}
+  #tip{position:absolute;z-index:9;pointer-events:none;opacity:0;transition:opacity .1s;
+    background:#0A111A;border:1px solid var(--line-2);padding:9px 11px;min-width:190px;
+    box-shadow:0 12px 30px rgba(0,0,0,.55)}
+  #tip .nm{font-size:12.5px;font-weight:600;margin-bottom:6px}
+  #tip .rw{display:flex;justify-content:space-between;gap:14px;font-family:"IBM Plex Mono",monospace;
+    font-size:10.5px;color:var(--muted);padding:1.5px 0}
+  #tip .rw b{color:var(--text);font-weight:500}
+
+  /* rail */
+  .rail{border-left:1px solid var(--line);display:flex;flex-direction:column;background:var(--panel);min-height:0}
+  .rail-head{padding:14px 16px 11px;border-bottom:1px solid var(--line)}
+  .rail-head .t{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+  .rail-head h2{font-size:13px;font-weight:600;letter-spacing:.02em}
+  .chips{display:flex;gap:4px}
+  .chip{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--dim);border:1px solid var(--line);background:none;padding:3px 7px;cursor:pointer;border-radius:2px}
+  .chip[aria-pressed="true"]{color:var(--text);border-color:var(--line-2);background:rgba(255,255,255,.05)}
+  .filterline{display:flex;align-items:center;gap:7px;margin-top:10px;
+    font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.06em;color:var(--dim)}
+  .status-block{padding:11px 16px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.014)}
+  .sr{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11px;color:var(--muted)}
+  .sr .v{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--dim);letter-spacing:.03em}
+  .feed{overflow-y:auto;flex:1;min-height:0}
+  .feed::-webkit-scrollbar{width:8px}
+  .feed::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1)}
+  .item{display:block;padding:13px 16px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;position:relative}
+  .item:hover{background:rgba(255,255,255,.022)}
+  .item:hover .hl{color:#fff}
+  .item .meta{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+  .item .src{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:66%}
+  .item .ago{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--dim);margin-left:auto}
+  .item .hl{font-family:Newsreader,Georgia,serif;font-size:16.5px;line-height:1.32;color:#E9EDF4;letter-spacing:-.002em}
+  .item .dek{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.45;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .item .tag{display:inline-block;margin-top:8px;font-family:"IBM Plex Mono",monospace;font-size:9px;
+    letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;border:1px solid var(--line-2);color:var(--muted)}
+  .empty{padding:26px 18px;color:var(--dim);font-size:12px;line-height:1.6}
+  .rail-foot{border-top:1px solid var(--line);padding:9px 16px;display:flex;justify-content:space-between;
+    align-items:center;font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.06em;color:var(--dim)}
+  .status{display:flex;align-items:center;gap:18px;padding:0 16px;border-top:1px solid var(--line);
+    background:#05090E;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.06em;color:var(--dim)}
+  .status .s{display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .status .ok{color:var(--mint)}
+  .status .warn{color:var(--amber)}
+  .status .right{margin-left:auto;display:flex;gap:16px;align-items:center}
+  @keyframes pulse{0%{opacity:.55}50%{opacity:.12}100%{opacity:.55}}
+  .pulse{animation:pulse 2.6s ease-in-out infinite}
+  @media (max-width:1180px){ :root{--rail-w:360px} .brand h1{font-size:12px;letter-spacing:.15em} }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <div class="glyph" aria-hidden="true"><i></i><i></i></div>
+      <div>
+        <h1>WEST PHILIPPINE SEA <b>WATCH</b></h1>
+        <div class="sub lbl">Open-source maritime monitor · Gadget Pilipinas</div>
+      </div>
+    </div>
+    <div class="head-right">
+      <div class="clock"><div class="t num" id="clock">--:--:--</div><div class="z">UTC+8 · MANILA</div></div>
+      <div class="pill" id="livepill"><span class="dot grey" id="livedot"></span><span id="livetext">CONNECTING</span></div>
+    </div>
+  </header>
+
+  <main>
+    <div class="mapwrap" id="mapwrap">
+      <svg id="map" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Map of the West Philippine Sea"></svg>
+
+      <div class="ov layers" id="layersBox"><div class="lh lbl">Layers</div></div>
+
+      <div class="ov counters">
+        <div class="row"><span class="k">AIS contacts</span><span class="v" id="cAis">—</span><span class="d" id="dAis">idle</span></div>
+        <div class="row"><span class="k">Sentinel-1 passes</span><span class="v" id="cSar" style="color:var(--cyan)">—</span><span class="d">7d</span></div>
+        <div class="row"><span class="k">Reporting</span><span class="v" id="cNews" style="color:var(--mint)">—</span><span class="d">live</span></div>
+        <div class="row"><span class="k">Encounters</span><span class="v" id="cEnc" style="color:var(--mint)">—</span><span class="d">7d</span></div>
+        <div class="row"><span class="k">AIS gaps</span><span class="v" id="cGap" style="color:var(--amber)">—</span><span class="d">7d</span></div>
+        <div class="row"><span class="k">Held by filter</span><span class="v" id="cHeld" style="color:var(--amber)">—</span><span class="d">Jev</span></div>
+        <div class="row" style="padding:6px 11px"><span class="k" style="font-size:9.5px">Cursor</span>
+          <span class="v" id="cursor" style="font-size:10.5px;color:var(--muted)">—</span></div>
+      </div>
+
+      <div class="ov legend">
+        <span class="lbl">Legend</span>
+        <span class="it"><i class="gl dash"></i>Sentinel-1 pass</span>
+        <span class="it"><i class="gl ring"></i>Reef / outpost</span>
+        <span class="it" id="lgPh"><i class="gl" style="background:var(--cyan)"></i>PH government</span>
+        <span class="it" id="lgCcg"><i class="gl" style="background:var(--red)"></i>China Coast Guard</span>
+        <span class="it" id="lgMil"><i class="gl" style="background:var(--amber)"></i>Chinese-flagged</span>
+        <span class="it"><i class="gl" style="background:#8D97A8"></i>Commercial</span>
+        <span class="it"><i class="gl dia"></i>Encounter</span>
+        <span class="it"><i class="gl ring2"></i>AIS gap</span>
+      </div>
+
+      <div class="ov timebar">
+        <span class="lbl" style="white-space:nowrap">SAR activity · 7d</span>
+        <div class="spark" id="spark"></div>
+        <span class="txt" id="sarTxt">—</span>
+        <span class="right" id="sarRight"></span>
+      </div>
+
+      <div id="tip"></div>
+    </div>
+
+    <aside class="rail">
+      <div class="rail-head">
+        <div class="t"><h2>Latest</h2><span class="lbl" id="feedCount">—</span></div>
+        <div class="chips" id="chips">
+          <button class="chip" aria-pressed="true" data-f="all">All</button>
+          <button class="chip" aria-pressed="false" data-f="wps">WPS</button>
+          <button class="chip" aria-pressed="false" data-f="vessels">Vessels</button>
+          <button class="chip" aria-pressed="false" data-f="policy">Policy</button>
+        </div>
+        <div class="filterline"><span class="dot grey" id="fdot" style="width:5px;height:5px"></span>
+          <span id="filtertext">editorial filter: starting</span></div>
+      </div>
+
+      <div class="status-block" id="statusBlock">
+        <div class="sr"><span class="dot grey" id="dNews" style="width:5px;height:5px"></span>News feeds
+          <span class="v" id="vNews">—</span></div>
+        <div class="sr"><span class="dot grey" id="dSar" style="width:5px;height:5px"></span>Sentinel-1 radar
+          <span class="v" id="vSar">—</span></div>
+        <div class="sr"><span class="dot grey" id="dAis2" style="width:5px;height:5px"></span>AIS vessel feed
+          <span class="v" id="vAis">—</span></div>
+      </div>
+
+      <div class="feed" id="feed">
+        <div class="empty">Loading reporting…</div>
+      </div>
+
+      <div class="rail-foot">
+        <span>Sources: RSS · CDSE STAC · Jev</span>
+        <span>ALL TIMES UTC+8</span>
+      </div>
+    </aside>
+  </main>
+
+  <div class="status">
+    <span class="s"><span class="dot grey" id="sNews" style="width:5px;height:5px"></span><span id="sNewsT">news</span></span>
+    <span class="s"><span class="dot grey" id="sSar" style="width:5px;height:5px"></span><span id="sSarT">sentinel-1</span></span>
+    <span class="s"><span class="dot grey" id="sAis" style="width:5px;height:5px"></span><span id="sAisT">ais</span></span>
+    <span class="s warn" id="sNote"></span>
+    <span class="right"><span>PREPARED BY GADGET PILIPINAS</span><span id="buildTag">v1.0</span></span>
+  </div>
+</div>
+
+<script>
+const LAND = __LAND__;
+
+/* static, sourced geography: coordinates only, no invented boundaries */
+const FEATURES = [
+  {n:"Scarborough Shoal",  p:[15.15,117.75], k:"reef", b:1, pref:"up",   s:"PH claim · seized 2012"},
+  {n:"Ayungin / Second Thomas", p:[9.75,115.85], k:"outpost", b:1, pref:"left", s:"BRP Sierra Madre grounded"},
+  {n:"Sabina Shoal",       p:[9.75,116.33], k:"reef", b:1, pref:"right", s:"Escoda · CCG presence"},
+  {n:"Pag-asa / Thitu",    p:[11.05,114.28], k:"outpost", b:1, pref:"right", s:"PH-administered"},
+  {n:"Recto Bank",         p:[11.40,116.80], k:"bank", b:1, pref:"right", s:"Reed Bank · SC 72"},
+  {n:"Mischief Reef",      p:[9.90,115.53], k:"reef", b:0, pref:"up", s:"CN-built"},
+  {n:"Subi Reef",          p:[10.92,114.08], k:"reef", b:0, pref:"left", s:"CN-built"},
+  {n:"Fiery Cross Reef",   p:[9.55,112.89], k:"reef", b:0, pref:"right", s:"CN-built"},
+  {n:"Woody Island",       p:[16.83,112.33], k:"reef", b:0, pref:"right", s:"Paracels"},
+  {n:"Zambales coast",     p:[15.55,119.95], k:"coast", b:0, pref:"up", s:"Masinloc"},
+  {n:"Palawan",            p:[9.74,118.73], k:"coast", b:0, pref:"left", s:"Puerto Princesa"}
+];
+
+const VESSEL_COLOR = {ccg:"#FF4A3D", cn:"#FFB020", ph:"#3BC5E8", com:"#8D97A8"};
+const state = { vessels: [], sar: [], events:{gaps:[],encounters:[]}, news: [], summary: null, filter:"all", layers:{vessels:1,sar:1,feat:1,events:1} };
+
+const svg = document.getElementById('map');
+const wrap = document.getElementById('mapwrap');
+const tip = document.getElementById('tip');
+const NS = 'http://www.w3.org/2000/svg';
+const VIEW = {lon:117.4, lat:13.3, spanLon:23.2};
+let W=0,H=0,PPR=1;
+
+const mercY = lat => Math.log(Math.tan(Math.PI/4 + (lat*Math.PI/180)/2));
+function project(lat, lon){
+  return [ W/2 + (lon - VIEW.lon) * PPR * Math.PI/180,
+           H/2 - (mercY(lat) - mercY(VIEW.lat)) * PPR ];
+}
+function unproject(x,y){
+  const lon = VIEW.lon + (x - W/2)/(PPR*Math.PI/180);
+  const m = mercY(VIEW.lat) - (y - H/2)/PPR;
+  return [(2*Math.atan(Math.exp(m)) - Math.PI/2)*180/Math.PI, lon];
+}
+const el = (n,a={}) => {const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);return e;};
+const manila = ts => ts ? new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Manila',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(ts)).replace(',','') : '—';
+const manilaTime = ts => ts ? new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Manila',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(ts)) : '—';
+const ago = ts => {
+  if(!ts) return '';
+  const s = (Date.now()-new Date(ts).getTime())/1000;
+  if(s<3600) return Math.max(1,Math.round(s/60))+'m';
+  if(s<86400) return Math.round(s/3600)+'h';
+  return Math.round(s/86400)+'d';
+};
+
+/* ---------- map ---------- */
+function draw(){
+  W = wrap.clientWidth; H = wrap.clientHeight;
+  PPR = W / (VIEW.spanLon * Math.PI/180);
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svg.innerHTML = '';
+
+  const defs = el('defs');
+  defs.innerHTML = `<linearGradient id="sea" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#061019"/><stop offset="0.55" stop-color="#071722"/><stop offset="1" stop-color="#050D15"/>
+    </linearGradient><filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2"/></filter>`;
+  svg.appendChild(defs);
+  svg.appendChild(el('rect',{x:0,y:0,width:W,height:H,fill:'url(#sea)'}));
+
+  // graticule
+  const g = el('g',{stroke:'rgba(120,160,200,.10)','stroke-width':1});
+  for(let lon=104; lon<=132; lon+=2){
+    const [x] = project(0,lon);
+    g.appendChild(el('line',{x1:x,y1:0,x2:x,y2:H}));
+    if(x>20 && x<W-30){
+      const t = el('text',{x:x+4,y:H-10,fill:'rgba(140,170,200,.42)','font-size':9,'font-family':'IBM Plex Mono, monospace'});
+      t.textContent = lon+'°E'; g.appendChild(t);
+    }
+  }
+  for(let lat=2; lat<=26; lat+=2){
+    const [,y] = project(lat,0);
+    if(y<8||y>H-8) continue;
+    g.appendChild(el('line',{x1:0,y1:y,x2:W,y2:y}));
+    const t = el('text',{x:8,y:y-4,fill:'rgba(140,170,200,.42)','font-size':9,'font-family':'IBM Plex Mono, monospace'});
+    t.textContent = lat+'°N'; g.appendChild(t);
+  }
+  svg.appendChild(g);
+
+  // label solver
+  const OCC = [{x1:0,x2:240,y1:0,y2:160},{x1:W-250,x2:W,y1:0,y2:160},{x1:0,x2:W,y1:H-100,y2:H}];
+  const vesselPts = (state.vessels||[]).map(v=>{
+    const last = (v.trk && v.trk.length ? v.trk[v.trk.length-1] : v.pos);
+    if(!last) return null;
+    const [x,y] = project(last[0], last[1]);
+    return {x,y,v};
+  }).filter(Boolean);
+  const TOCC = OCC.slice();
+  vesselPts.forEach(p=>OCC.push({x1:p.x-7,x2:p.x+7,y1:p.y-7,y2:p.y+7}));
+  // event markers are drawn after labels, so reserve their space first
+  [...(state.events.gaps||[]), ...(state.events.encounters||[])].forEach(g=>{
+    if(!g.pos) return;
+    const [x,y] = project(g.pos[0], g.pos[1]);
+    OCC.push({x1:x-8,x2:x+8,y1:y-8,y2:y+8});
+  });
+  const hit = (r,L) => L.some(o => !(r.x2<=o.x1||r.x1>=o.x2||r.y2<=o.y1||r.y1>=o.y2));
+  function place(x,y,text,size,mono,pref,extraH){
+    const w = text.length*(mono?0.62:0.545)*size + 6, h = size+3+(extraH||0);
+    let c = [[x+8,y-h/2],[x-8-w,y-h/2],[x-w/2,y-h-6],[x-w/2,y+6]];
+    if(pref==='left') c = [[x-8-w,y-h/2],[x+8,y-h/2],[x-w/2,y+6],[x-w/2,y-h-6]];
+    if(pref==='up')   c = [[x-w/2,y-h-7],[x+8,y-h/2],[x-8-w,y-h/2],[x-w/2,y+7]];
+    for(const L of [OCC,TOCC]) for(const [cx,cy] of c){
+      const r = {x1:cx-2,x2:cx+w+2,y1:cy-2,y2:cy+h+2};
+      if(r.x1<4||r.x2>W-4||r.y1<4||r.y2>H-4) continue;
+      if(hit(r,L)) continue;
+      OCC.push(r); TOCC.push(r);
+      return {x:cx,y:cy+h*0.76};
+    }
+    return null;
+  }
+
+  // land
+  const land = el('g');
+  LAND.forEach(c=>{
+    let d='';
+    c.r.forEach(ring=>{ ring.forEach((p,i)=>{const [x,y]=project(p[1],p[0]); d += (i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1);}); d+='Z'; });
+    land.appendChild(el('path',{d,fill:'var(--land)',stroke:'#2E4054','stroke-width':0.7,'stroke-linejoin':'round'}));
+  });
+  svg.appendChild(land);
+
+  // indicative coverage envelope (labelled as design envelope, never a legal boundary)
+  const env = el('path',{
+    d:[[3.4,119.6],[6.2,126.4],[10.4,128.6],[15.2,127.2],[19.4,124.0],[21.6,120.6],[20.4,116.0],[16.2,113.0],[11.0,112.6],[6.0,114.4]]
+      .map((p,i)=>{const [x,y]=project(p[0],p[1]); return (i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1);}).join('')+'Z',
+    fill:'none',stroke:'rgba(59,197,232,.16)','stroke-width':1,'stroke-dasharray':'5 6'});
+  svg.appendChild(env);
+
+  // Sentinel-1 footprints
+  if(state.layers.sar && state.sar.length){
+    const sg = el('g');
+    state.sar.forEach((s,i)=>{
+      if(!s.ring || s.ring.length<3) return;
+      const d = s.ring.map((p,j)=>{const [x,y]=project(p[1],p[0]); return (j?'L':'M')+x.toFixed(1)+' '+y.toFixed(1);}).join('')+'Z';
+      const p = el('path',{d, fill:'rgba(59,197,232,.045)', stroke:'rgba(59,197,232,'+(i===0?'.5':'.28')+')',
+        'stroke-width':1,'stroke-dasharray':'3 4'});
+      p.classList.add('sar');
+      p.addEventListener('mouseenter',e=>{
+        tip.innerHTML = `<div class="nm" style="color:var(--cyan)">Sentinel-1 pass</div>
+          <div class="rw"><span>Acquired</span><b>${manila(s.datetime)} PH</b></div>
+          <div class="rw"><span>Platform</span><b>${(s.platform||'').replace('sentinel','S').replace('-','')}</b></div>
+          <div class="rw"><span>Orbit</span><b>${s.orbit||'—'} · ${s.rel_orbit||'—'}</b></div>
+          <div class="rw"><span>Scene</span><b>${(s.id||'').slice(-14)}</b></div>`;
+        tip.style.opacity=1; moveTip(e);
+      });
+      p.addEventListener('mousemove',moveTip);
+      p.addEventListener('mouseleave',()=>tip.style.opacity=0);
+      sg.appendChild(p);
+    });
+    svg.appendChild(sg);
+  }
+
+  // features
+  if(state.layers.feat){
+    const fg = el('g');
+    FEATURES.forEach(f=>{
+      const [x,y] = project(f.p[0],f.p[1]);
+      if(x<-40||x>W+40||y<-40||y>H+40) return;
+      fg.appendChild(el('circle',{cx:x,cy:y,r:f.b?3:2.2,fill:'none',
+        stroke:f.k==='outpost'?'#9FB3C8':'rgba(159,179,200,.6)','stroke-width':1.2}));
+      const size = f.b?10.5:9.5;
+      const pos = place(x,y,f.n,size,false,f.pref,(f.b&&f.s)?11:0);
+      if(!pos) return;
+      const t = el('text',{x:pos.x,y:pos.y,fill:f.b?'#C3CFDD':'rgba(160,176,196,.62)','font-size':size,
+        'font-family':'Inter, sans-serif','font-weight':f.b?500:400,'letter-spacing':'.01em'});
+      t.textContent = f.n; fg.appendChild(t);
+      if(f.b && f.s){
+        const s = el('text',{x:pos.x,y:pos.y+11,fill:'rgba(120,140,162,.78)','font-size':8.6,
+          'font-family':'IBM Plex Mono, monospace','letter-spacing':'.01em'});
+        s.textContent = f.s; fg.appendChild(s);
+      }
+    });
+    svg.appendChild(fg);
+  }
+
+  // vessels
+  if(state.layers.vessels && vesselPts.length){
+    const tg = el('g',{'stroke-linecap':'round'});
+    vesselPts.forEach(({v})=>{
+      const col = VESSEL_COLOR[v.cls] || '#8D97A8';
+      const pts = (v.trk||[]).map(p=>project(p[0],p[1]));
+      for(let i=1;i<pts.length;i++){
+        tg.appendChild(el('line',{x1:pts[i-1][0],y1:pts[i-1][1],x2:pts[i][0],y2:pts[i][1],
+          stroke:col,'stroke-width':v.cls==='com'?1:1.5,opacity:0.12+(i/pts.length)*0.5}));
+      }
+    });
+    svg.appendChild(tg);
+
+    const vg = el('g');
+    vesselPts.forEach(({x,y,v})=>{
+      const col = VESSEL_COLOR[v.cls] || '#8D97A8';
+      const g1 = el('g',{class:'vessel'});
+      if(v.cls!=='com') g1.appendChild(el('circle',{cx:x,cy:y,r:9,fill:col,opacity:.13,filter:'url(#soft)'}));
+      const sz = v.cls==='com'?4.2:5.4;
+      g1.appendChild(el('path',{class:'hull',
+        d:`M${x} ${y-sz} L${x+sz*0.62} ${y+sz*0.72} L${x} ${y+sz*0.34} L${x-sz*0.62} ${y+sz*0.72} Z`,
+        fill:col,opacity:v.cls==='com'?.75:1,transform:`rotate(${v.hdg||0} ${x} ${y})`}));
+      g1.addEventListener('mouseenter',e=>{
+        tip.innerHTML = `<div class="nm" style="color:${col}">${v.id}</div>
+          <div class="rw"><span>Class</span><b>${v.type||'—'}</b></div>
+          <div class="rw"><span>Position</span><b>${v.pos[0].toFixed(2)}°N ${v.pos[1].toFixed(2)}°E</b></div>
+          <div class="rw"><span>Course / speed</span><b>${String(v.hdg||0).padStart(3,'0')}° / ${v.spd||0} kt</b></div>
+          <div class="rw"><span>Last report</span><b>${manilaTime(v.seen)}</b></div>`;
+        tip.style.opacity=1; moveTip(e);
+      });
+      g1.addEventListener('mousemove',moveTip);
+      g1.addEventListener('mouseleave',()=>tip.style.opacity=0);
+      vg.appendChild(g1);
+    });
+    svg.appendChild(vg);
+  }
+
+  // GFW events: encounters (mint diamonds) and AIS gaps (amber dashed rings)
+  if(state.layers.events){
+    const eg = el('g');
+    (state.events.encounters||[]).forEach(e=>{
+      const [x,y] = project(e.pos[0], e.pos[1]);
+      const d = el('path',{d:`M${x} ${y-3.5} L${x+3.5} ${y} L${x} ${y+3.5} L${x-3.5} ${y} Z`,
+        fill:'none', stroke:'#57D08F','stroke-width':1.1,opacity:.85});
+      d.addEventListener('mouseenter',ev=>{
+        tip.innerHTML = `<div class="nm" style="color:var(--mint)">Encounter · GFW</div>
+          <div class="rw"><span>Vessel</span><b>${e.vessel||'—'}</b></div>
+          <div class="rw"><span>With</span><b>${e.other||'—'}</b></div>
+          <div class="rw"><span>Flags</span><b>${e.flag||'?'} / ${e.other_flag||'?'}</b></div>
+          <div class="rw"><span>Started</span><b>${manila(e.start)} PH</b></div>`;
+        tip.style.opacity=1; moveTip(ev);
+      });
+      d.addEventListener('mousemove',moveTip);
+      d.addEventListener('mouseleave',()=>tip.style.opacity=0);
+      eg.appendChild(d);
+    });
+    (state.events.gaps||[]).forEach(g=>{
+      const [x,y] = project(g.pos[0], g.pos[1]);
+      eg.appendChild(el('circle',{cx:x,cy:y,r:11,fill:'none',stroke:'#FFB020','stroke-width':1,
+        'stroke-dasharray':'3 4',class:'pulse',opacity:.55}));
+      const c = el('circle',{cx:x,cy:y,r:3,fill:'none',stroke:'#FFB020','stroke-width':1.2});
+      c.addEventListener('mouseenter',ev=>{
+        tip.innerHTML = `<div class="nm" style="color:var(--amber)">AIS gap · ${g.hours} h</div>
+          <div class="rw"><span>Vessel</span><b>${g.vessel}</b></div>
+          <div class="rw"><span>Flag</span><b>${g.flag||'unknown'}</b></div>
+          <div class="rw"><span>Went dark</span><b>${manila(g.start)} PH</b></div>
+          <div class="rw"><span>Intentional</span><b>${g.intentional?'flagged':'not flagged'}</b></div>`;
+        tip.style.opacity=1; moveTip(ev);
+      });
+      c.addEventListener('mousemove',moveTip);
+      c.addEventListener('mouseleave',()=>tip.style.opacity=0);
+      eg.appendChild(c);
+    });
+    svg.appendChild(eg);
+  }
+
+  // scale bar + north
+  const kmPerDeg = 111.32*Math.cos(VIEW.lat*Math.PI/180);
+  const barPx = (100/kmPerDeg)*PPR*Math.PI/180;
+  const bx2 = W-26, bx1 = bx2-barPx, by = H-120;
+  const sb = el('g',{stroke:'rgba(200,215,232,.5)','stroke-width':1});
+  sb.appendChild(el('line',{x1:bx1,y1:by,x2:bx2,y2:by}));
+  sb.appendChild(el('line',{x1:bx1,y1:by-4,x2:bx1,y2:by+4}));
+  sb.appendChild(el('line',{x1:bx2,y1:by-4,x2:bx2,y2:by+4}));
+  const sl = el('text',{x:bx2,y:by-9,fill:'rgba(200,215,232,.62)','font-size':9,'text-anchor':'end','font-family':'IBM Plex Mono, monospace'});
+  sl.textContent='100 KM'; sb.appendChild(sl);
+  const nn = el('text',{x:bx2,y:by+18,fill:'rgba(200,215,232,.5)','font-size':9,'text-anchor':'end','font-family':'IBM Plex Mono, monospace'});
+  nn.textContent='N ↑'; sb.appendChild(nn);
+  svg.appendChild(sb);
+}
+
+function moveTip(e){
+  const r = wrap.getBoundingClientRect();
+  let x = e.clientX-r.left+14, y = e.clientY-r.top+14;
+  if(x+215>W) x -= 240;
+  if(y+130>H) y -= 140;
+  tip.style.left=x+'px'; tip.style.top=y+'px';
+}
+svg.addEventListener('mousemove', e=>{
+  const r = wrap.getBoundingClientRect();
+  const [lat,lon] = unproject(e.clientX-r.left, e.clientY-r.top);
+  document.getElementById('cursor').textContent = lat.toFixed(2)+'°N '+lon.toFixed(2)+'°E';
+});
+svg.addEventListener('mouseleave', ()=>{document.getElementById('cursor').textContent='—';});
+
+/* ---------- layers ---------- */
+const LAYERS = [
+  {k:'vessels', n:'AIS positions',     col:'#FF4A3D'},
+  {k:'events',  n:'Dark activity',     col:'#FFB020'},
+  {k:'sar',     n:'Sentinel-1 passes', col:'#3BC5E8'},
+  {k:'feat',    n:'Reefs & outposts',  col:'#9FB3C8'}
+];
+function buildLayers(){
+  const box = document.getElementById('layersBox');
+  LAYERS.forEach(d=>{
+    if(box.querySelector('[data-k="'+d.k+'"]')) return;
+    const b = document.createElement('button');
+    b.className='layer'; b.dataset.on='1'; b.dataset.k=d.k;
+    b.innerHTML = `<span class="sw" style="background:${d.col}"></span><span>${d.n}</span><span class="ct" data-c></span>`;
+    b.addEventListener('click',()=>{
+      const on = b.dataset.on==='1'?0:1;
+      b.dataset.on=String(on); state.layers[d.k]=on; draw();
+    });
+    box.appendChild(b);
+  });
+}
+function updateLayerCounts(){
+  const set=(k,v)=>{const e=document.querySelector('[data-k="'+k+'"] [data-c]'); if(e) e.textContent=v;};
+  set('vessels', state.vessels.length || '—');
+  set('sar', state.sar.length || '—');
+  set('feat', FEATURES.length);
+  set('events', (state.events.gaps||[]).length + (state.events.encounters||[]).length);
+}
+
+/* ---------- rail ---------- */
+function renderFeed(){
+  const feed = document.getElementById('feed');
+  const items = state.news.filter(n=> state.filter==='all' || n.tag===state.filter);
+  document.getElementById('feedCount').textContent = items.length+' items';
+  if(!items.length){
+    feed.innerHTML = '<div class="empty">No matching reporting in the current window. '+
+      'The rail only shows items that pass the editorial filter.</div>';
+    return;
+  }
+  feed.innerHTML = items.map(n=>`
+    <a class="item" href="${n.link}" target="_blank" rel="noopener noreferrer nofollow">
+      <div class="meta"><span class="src">${n.publisher || n.source}</span><span class="ago">${ago(n.published)}</span></div>
+      <div class="hl">${n.title}</div>
+      ${n.summary ? `<div class="dek">${n.summary}</div>` : ''}
+      <span class="tag">${n.tag}</span>
+    </a>`).join('');
+}
+document.getElementById('chips').addEventListener('click', e=>{
+  const b = e.target.closest('.chip'); if(!b) return;
+  [...e.currentTarget.children].forEach(c=>c.setAttribute('aria-pressed', String(c===b)));
+  state.filter = b.dataset.f; renderFeed();
+});
+
+/* ---------- data ---------- */
+function pill(id, text, cls){
+  const d = document.getElementById(id);
+  if(d){ d.className = 'dot '+(cls||''); }
+  return text;
+}
+async function loadNews(){
+  try{
+    const r = await fetch('/api/news', {headers:{'Accept':'application/json'}});
+    if(!r.ok) throw new Error('http '+r.status);
+    const d = await r.json();
+    state.news = d.items || [];
+    renderFeed();
+  }catch(e){ /* keep last good render */ }
+}
+async function loadSar(){
+  try{
+    const r = await fetch('/api/sar', {headers:{'Accept':'application/json'}});
+    const d = await r.json();
+    state.sar = (d.scenes||[]).slice(0,16);
+    draw(); updateLayerCounts();
+    document.getElementById('cSar').textContent = d.count ?? '—';
+    // 7-day sparkline from real scene timestamps
+    const days = [...Array(7)].map((_,i)=>new Date(Date.now()-(6-i)*864e5));
+    const counts = days.map(day=> (d.scenes||[]).filter(s=> new Date(s.datetime).toDateString()===day.toDateString()).length);
+    const max = Math.max(1,...counts);
+    document.getElementById('spark').innerHTML = counts.map(c=>
+      `<i data-empty="${c?0:1}" style="height:${Math.max(2, Math.round(c/max*20))}px"></i>`).join('');
+    document.getElementById('sarTxt').textContent = d.last_pass ? 'LAST PASS '+manila(d.last_pass).toUpperCase()+' PH' : 'NO PASSES IN WINDOW';
+    document.getElementById('sarRight').textContent = (d.count||0)+' SCENES · 6-DAY REVISIT';
+    const fresh = d.last_pass && (Date.now()-new Date(d.last_pass).getTime()) < 3*864e5;
+    document.getElementById('dSar').className = 'dot '+(fresh?'':'amber');
+    document.getElementById('vSar').textContent = d.last_pass ? manilaTime(d.last_pass)+' PH' : 'no data';
+    document.getElementById('sSar').className = 'dot '+(fresh?'':'amber');
+    document.getElementById('sSarT').textContent = 'sentinel-1 '+(d.last_pass? manilaTime(d.last_pass)+'Z' : 'idle');
+  }catch(e){}
+}
+async function loadSummary(){
+  try{
+    const r = await fetch('/api/summary', {headers:{'Accept':'application/json'}});
+    const d = await r.json();
+    state.summary = d;
+    document.getElementById('cNews').textContent = d.news_count ?? '—';
+    document.getElementById('cHeld').textContent = d.news_held ?? '—';
+    document.getElementById('cAis').textContent = d.vessels.configured ? d.vessels.count : '—';
+    document.getElementById('dAis').textContent = d.vessels.configured ? '3h window' : 'idle';
+    document.getElementById('dAis2').className = 'dot '+(d.vessels.configured?'':'grey');
+    document.getElementById('vAis').textContent = d.vessels.configured ? d.vessels.count+' contacts' : 'awaiting key';
+    document.getElementById('sAis').className = 'dot '+(d.vessels.configured?'':'grey');
+    document.getElementById('sAisT').textContent = d.vessels.configured
+      ? 'ais ' + d.vessels.count + ' contacts · terrestrial'
+      : 'ais awaiting key';
+
+    const f = d.filter || {};
+    const fdot = document.getElementById('fdot');
+    const ftxt = document.getElementById('filtertext');
+    if(f.filter_state === 'on' || f.filter_state === 'partial'){
+      fdot.className = f.filter_state==='on' ? 'dot' : 'dot amber';
+      ftxt.textContent = 'editorial filter · '+d.news_held+' held · '+(f.model||'jev').replace('typesafe/','');
+    } else if(f.filter_state === 'off'){
+      fdot.className='dot grey'; ftxt.textContent = 'editorial filter off · showing all sourced items';
+    } else {
+      fdot.className='dot red'; ftxt.textContent = 'editorial filter unavailable · failing open';
+    }
+
+    const newsFresh = d.news_at && (Date.now()-new Date(d.news_at).getTime()) < 20*60*1000;
+    document.getElementById('dNews').className = 'dot '+(newsFresh?'':'amber');
+    document.getElementById('vNews').textContent = d.news_at ? d.feeds.filter(x=>x.ok).length+'/'+d.feeds.length+' up · '+manilaTime(d.news_at)+' PH' : 'starting';
+    document.getElementById('sNews').className = 'dot '+(newsFresh?'':'amber');
+    document.getElementById('sNewsT').textContent = 'news '+(d.news_at ? manilaTime(d.news_at)+'Z' : 'starting');
+
+    const live = d.livepill || (newsFresh ? 'LIVE' : 'STALE');
+    document.getElementById('livetext').textContent = (newsFresh?'LIVE':'STALE')+(d.vessels.configured?' · AIS':'');
+    document.getElementById('livedot').className = 'dot '+(newsFresh?'':'amber');
+
+    if(!d.vessels.configured){
+      document.getElementById('sNote').textContent = 'AIS layer idle — awaiting feed key';
+    } else if(d.vessels.count === 0){
+      document.getElementById('sNote').textContent = 'AIS live, no contacts in box yet (terrestrial coverage is sparse offshore)';
+    } else {
+      document.getElementById('sNote').textContent = '';
+    }
+    document.getElementById('buildTag').textContent = 'v1.0 · '+ (d.generated? manilaTime(d.generated)+'Z':'');
+  }catch(e){}
+}
+async function loadEvents(){
+  try{
+    const r = await fetch('/api/events', {headers:{'Accept':'application/json'}});
+    const d = await r.json();
+    state.events = {gaps: d.gaps||[], encounters: d.encounters||[]};
+    draw(); updateLayerCounts();
+    document.getElementById('cEnc').textContent = state.events.encounters.length;
+    document.getElementById('cGap').textContent = state.events.gaps.length;
+    const el2 = document.getElementById('sNote');
+    if(d.configured && !d.error && el2 && !el2.textContent) el2.textContent = '';
+  }catch(e){}
+}
+async function loadVessels(){
+  try{
+    const r = await fetch('/api/vessels', {headers:{'Accept':'application/json'}});
+    const d = await r.json();
+    state.vessels = d.vessels || [];
+    draw(); updateLayerCounts();
+  }catch(e){}
+}
+
+/* ---------- clock ---------- */
+function tick(){
+  const now = new Date();
+  document.getElementById('clock').textContent = new Intl.DateTimeFormat('en-GB',
+    {timeZone:'Asia/Manila',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(now);
+}
+tick(); setInterval(tick,1000);
+
+/* ---------- boot ---------- */
+buildLayers();
+draw();
+updateLayerCounts();
+loadSummary(); loadNews(); loadSar(); loadVessels(); loadEvents();
+setInterval(loadSummary, 60000);
+setInterval(loadNews, 60000);
+setInterval(loadSar, 300000);
+setInterval(loadVessels, 30000);
+setInterval(loadEvents, 300000);
+window.addEventListener('resize', ()=>{clearTimeout(window.__rz); window.__rz=setTimeout(draw,120);});
+</script>
+</body>
+</html>
